@@ -136,11 +136,11 @@ class GpCamera(BaseCamera):
         """Rotate a PIL image, same direction than RpiCamera.
         """
         if rotation == 90:
-            return image.transpose(Image.ROTATE_90)
+            return image.transpose(Image.Transpose.ROTATE_90)
         elif rotation == 180:
-            return image.transpose(Image.ROTATE_180)
+            return image.transpose(Image.Transpose.ROTATE_180)
         elif rotation == 270:
-            return image.transpose(Image.ROTATE_270)
+            return image.transpose(Image.Transpose.ROTATE_270)
         return image
 
     def get_preview_image(self):
@@ -157,7 +157,7 @@ class GpCamera(BaseCamera):
                                  (self._rect.width, self._rect.height), 'outer'))
 
             if self.preview_flip:
-                image = image.transpose(Image.FLIP_LEFT_RIGHT)
+                image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
         else:
             image = Image.new('RGB', (self._rect.width, self._rect.height), color=(0, 0, 0))
             time.sleep(0.1)
@@ -188,7 +188,7 @@ class GpCamera(BaseCamera):
         image = image.resize(sizing.new_size_keep_aspect_ratio(image.size, self.resolution, 'outer'))
 
         if self.capture_flip:
-            image = image.transpose(Image.FLIP_LEFT_RIGHT)
+            image = image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
 
         if effect != 'none':
             image = image.filter(getattr(ImageFilter, effect.upper()))
