@@ -205,8 +205,10 @@ def text_to_pygame_image(text, size, color, align='center', bg_color=None, font_
     return surface
 
 
-def get_layout_asset(index, text_color, bg_color):
+def get_layout_asset(index, text_color, bg_color, orientation=AUTO):
     """Return the layout image with the corresponding text.
+    When orientation is 'auto', layouts for 2 and 3 captures are displayed
+    in landscape to reflect the actual final image orientation.
 
     :param index: number of captures on the layout
     :type index: int
@@ -214,12 +216,27 @@ def get_layout_asset(index, text_color, bg_color):
     :type text_color: tuple
     :param bg_color: RGB color for asset image
     :type bg_color: tuple
+    :param orientation: picture orientation ('auto', 'portrait' or 'landscape')
+    :type orientation: str
 
     :return: surface
     :rtype: :py:class:`pygame.Surface`
     """
+    # Determine if this layout should be displayed in landscape
+    is_landscape = False
+    if orientation == LANDSCAPE:
+        is_landscape = True
+    elif orientation == AUTO and index in (2, 3):
+        is_landscape = True
+
+    if is_landscape:
+        asset_name = f"layout{index}_landscape.png"
+    else:
+        asset_name = f"layout{index}.png"
+
     layout_image = colorize_pygame_image(
-        load_pygame_image(f"layout{index}.png"), bg_color)
+        load_pygame_image(asset_name), bg_color)
+
     text = language.get_translated_text(str(index))
     if text:
         rect = layout_image.get_rect()
