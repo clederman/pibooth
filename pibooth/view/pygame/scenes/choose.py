@@ -120,15 +120,21 @@ class ChooseScene(BasePygameScene):
         """
         self.slider.on_next()
 
-    def set_choices(self, choices, orientation=pictures.AUTO):
+    def set_choices(self, choices, orientation=pictures.AUTO, backgrounds=None):
         """Set the list of possible number of captures.
         """
         if choices != self.choices or orientation != self._orientation:
             # Reload pictures
             self.choices = choices
             self._orientation = orientation
-            self.slider.load_images([pictures.get_layout_asset(
-                c, self.background.get_color(), self.text_color, orientation) for c in choices])
+            if backgrounds and len(backgrounds) >= len(choices):
+                self.slider.load_images([pictures.get_layout_asset(
+                    c, self.background.get_color(), self.text_color, orientation, backgrounds[i])
+                    for i, c in enumerate(choices)])
+            else:
+                self.slider.load_images([pictures.get_layout_asset(
+                    c, self.background.get_color(), self.text_color, orientation)
+                    for c in choices])
 
     def get_selection(self):
         """Return curretly selected number of captures.

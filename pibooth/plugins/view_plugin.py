@@ -89,7 +89,10 @@ class ViewPlugin:
     @pibooth.hookimpl
     def state_choose_enter(self, cfg, app, win):
         LOGGER.info("Show picture choice (nothing selected)")
-        win.scene.set_choices(app.capture_choices, cfg.get('PICTURE', 'orientation'))
+        backgrounds = None
+        if cfg.getboolean('PICTURE', 'captures_preview_backgrounds'):
+            backgrounds = cfg.gettuple('PICTURE', 'backgrounds', ('color', 'path'), len(app.capture_choices))
+        win.scene.set_choices(app.capture_choices, cfg.get('PICTURE', 'orientation'), backgrounds)
         self.choose_timer.start()
 
     @pibooth.hookimpl

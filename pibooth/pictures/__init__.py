@@ -205,7 +205,7 @@ def text_to_pygame_image(text, size, color, align='center', bg_color=None, font_
     return surface
 
 
-def get_layout_asset(index, text_color, bg_color, orientation=AUTO):
+def get_layout_asset(index, text_color, bg_color, orientation=AUTO, background=None):
     """Return the layout image with the corresponding text.
     When orientation is 'auto', layouts for 2 and 3 captures are displayed
     in landscape to reflect the actual final image orientation.
@@ -218,6 +218,8 @@ def get_layout_asset(index, text_color, bg_color, orientation=AUTO):
     :type bg_color: tuple
     :param orientation: picture orientation ('auto', 'portrait' or 'landscape')
     :type orientation: str
+    :param background: RGB color tuple or path to background image for this layout
+    :type background: tuple or str
 
     :return: surface
     :rtype: :py:class:`pygame.Surface`
@@ -234,8 +236,24 @@ def get_layout_asset(index, text_color, bg_color, orientation=AUTO):
     else:
         asset_name = f"layout{index}.png"
 
-    layout_image = colorize_pygame_image(
-        load_pygame_image(asset_name), bg_color)
+    # If a background image is provided, use it to fill the frame area
+    # (the opaque white zone around the photo slots)
+    if background and isinstance(background, str) and osp.isfile(background):
+        from PIL import Image as PILImage
+        layout_pil = PILImage.open(get_filename(asset_name)).convert('RGBA')
+        bg_pil = PILImage.open(background).convert('RGB')
+        bg_pil = bg_pil.resize(layout_pil.size)
+
+        # Dark background for empty photo slots (transparent areas)
+        result = PILImage.new('RGBA', layout_pil.size, (40, 40, 40, 255))
+        # Paste background image only where layout is opaque (the frame area)
+        result.paste(bg_pil, (0, 0), layout_pil)
+
+        layout_image = pygame.image.fromstring(
+            result.convert('RGB').tobytes(), result.size, 'RGB')
+    else:
+        layout_image = colorize_pygame_image(
+            load_pygame_image(asset_name), bg_color)
 
     text = language.get_translated_text(str(index))
     if text:
@@ -244,6 +262,17 @@ def get_layout_asset(index, text_color, bg_color, orientation=AUTO):
                            rect.y + rect.height * 0.76,
                            rect.width * 0.7, rect.height * 0.20)
         text_font = fonts.get_pygame_font(text, fonts.CURRENT, rect.width, rect.height)
+
+        if background:
+            # Draw text outline for readability on any background
+            outline_color = (0, 0, 0) if sum(text_color) > 380 else (255, 255, 255)
+            for dx, dy in [(-2, -2), (-2, 2), (2, -2), (2, 2), (-2, 0), (2, 0), (0, -2), (0, 2)]:
+                outline = text_font.render(text, True, outline_color)
+                pos = outline.get_rect(center=rect.center)
+                pos.x += dx
+                pos.y += dy
+                layout_image.blit(outline, pos)
+
         surface = text_font.render(text, True, text_color)
         layout_image.blit(surface, surface.get_rect(center=rect.center))
     return layout_image
