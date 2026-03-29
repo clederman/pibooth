@@ -13,7 +13,9 @@ class Counters:
         self.data = kwargs.copy()
         self.default = kwargs
         self.filename = osp.abspath(osp.expanduser(filename))
-        if osp.isfile(self.filename):
+        # Check both pickle and json files for backward compatibility
+        json_file = self.filename.replace('.pickle', '.json')
+        if osp.isfile(json_file) or osp.isfile(self.filename):
             self.load()
 
     def __str__(self):
