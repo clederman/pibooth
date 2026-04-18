@@ -71,8 +71,6 @@ class ViewPlugin:
         if evts.find_event(events, evts.EVT_PIBOOTH_PRINTER_UPDATE):
             win.set_system_status(len(app.printer.get_all_tasks()), not app.printer.is_ready(),
                                   app.count.printed, app.count.taken)
-            # Re-enable print button when printer becomes ready again
-            win.scene.update_print_action(app.printer.is_ready() and app.count.remaining_duplicates > 0)
 
         if evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
             win.scene.update_print_action(app.printer.is_ready() and app.count.remaining_duplicates > 0)

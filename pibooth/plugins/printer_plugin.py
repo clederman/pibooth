@@ -43,13 +43,7 @@ class PrinterPlugin:
 
     @pibooth.hookimpl
     def state_wait_do(self, cfg, app, events):
-        has_print_event = evts.find_event(events, evts.EVT_PIBOOTH_PRINT) or evts.find_event(events, evts.EVT_BUTTON_PRINT)
-        if has_print_event:
-            LOGGER.debug("Print button pressed - file=%s, installed=%s, ready=%s, remaining=%s",
-                         app.previous_picture_file, app.printer.is_installed(),
-                         app.printer.is_ready(), app.count.remaining_duplicates)
-
-        if has_print_event and app.previous_picture_file and app.printer.is_installed():
+        if evts.find_event(events, evts.EVT_PIBOOTH_PRINT) and app.previous_picture_file and app.printer.is_installed():
 
             if app.count.remaining_duplicates <= 0:
                 LOGGER.warning("Too many duplicates sent to the printer (%s max)",
