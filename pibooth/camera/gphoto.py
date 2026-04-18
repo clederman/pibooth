@@ -122,8 +122,10 @@ class GpCamera(BaseCamera):
                                    value, option, choices)
             child.set_value(value)
             self._cam.set_config(config)
+            return True
         except gp.GPhoto2Error as ex:
             LOGGER.error('Unsupported option %s/%s=%s (%s), configure your DSLR manually', section, option, value, ex)
+            return False
 
     def get_config_value(self, section, option):
         """Get camera configuration option.
