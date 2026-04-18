@@ -64,16 +64,19 @@ class ViewPlugin:
     @pibooth.hookimpl
     def state_wait_do(self, app, win, events):
         if app.previous_animated and self.animated_frame_timer.is_timeout():
-            win.scene.update_print_action(app.printer.is_ready() and app.count.remaining_duplicates > 0)
             self.animated_frame_timer.start()
             win.scene.set_image(next(app.previous_animated))
+
+        print_enabled = app.previous_picture_file and app.printer.is_installed() \
+            and app.count.remaining_duplicates > 0
 
         if evts.find_event(events, evts.EVT_PIBOOTH_PRINTER_UPDATE):
             win.set_system_status(len(app.printer.get_all_tasks()), not app.printer.is_ready(),
                                   app.count.printed, app.count.taken)
+            win.scene.update_print_action(print_enabled)
 
         if evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
-            win.scene.update_print_action(app.printer.is_ready() and app.count.remaining_duplicates > 0)
+            win.scene.update_print_action(print_enabled)
 
     @pibooth.hookimpl
     def state_wait_validate(self, cfg, app, events):
