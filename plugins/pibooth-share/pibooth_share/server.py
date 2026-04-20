@@ -148,7 +148,7 @@ GALLERY_HTML = """<!DOCTYPE html>
         }}
         function showPhoto(src) {{
             document.getElementById('viewer-img').src = src;
-            document.getElementById('viewer-download').href = src;
+            // viewer-download removed, save handled by saveFromViewer()
             document.getElementById('nav-prev').style.display = currentIndex > 0 ? 'block' : 'none';
             document.getElementById('nav-next').style.display = currentIndex < photos.length - 1 ? 'block' : 'none';
         }}
