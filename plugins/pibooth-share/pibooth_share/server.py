@@ -9,6 +9,7 @@ import logging
 from io import BytesIO
 from PIL import Image
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+from socketserver import ThreadingMixIn
 
 LOGGER = logging.getLogger("pibooth")
 
@@ -101,6 +102,20 @@ GALLERY_HTML = """<!DOCTYPE html>
             background: none;
             border: none;
         }}
+        .photo-view .nav {{
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2.5em;
+            color: #fff;
+            background: rgba(0,0,0,0.4);
+            border: none;
+            cursor: pointer;
+            padding: 15px 12px;
+            border-radius: 8px;
+        }}
+        .photo-view .nav-left {{ left: 10px; }}
+        .photo-view .nav-right {{ right: 10px; }}
     </style>
 </head>
 <body>
@@ -113,21 +128,47 @@ GALLERY_HTML = """<!DOCTYPE html>
     </div>
     <div class="photo-view" id="viewer" onclick="if(event.target===this)closeViewer()">
         <button class="close" onclick="closeViewer()">&times;</button>
+        <button class="nav nav-left" id="nav-prev" onclick="navigatePhoto(-1)">&#10094;</button>
         <img id="viewer-img" src="">
+        <button class="nav nav-right" id="nav-next" onclick="navigatePhoto(1)">&#10095;</button>
         <div class="actions">
             <a id="viewer-download" href="" download>Télécharger</a>
             <button onclick="closeViewer()">Fermer</button>
         </div>
     </div>
     <script>
+        var photos = [{photo_list}];
+        var currentIndex = 0;
+
         function openViewer(src) {{
+            currentIndex = photos.indexOf(src);
+            showPhoto(src);
+            document.getElementById('viewer').classList.add('active');
+        }}
+        function showPhoto(src) {{
             document.getElementById('viewer-img').src = src;
             document.getElementById('viewer-download').href = src;
-            document.getElementById('viewer').classList.add('active');
+            document.getElementById('nav-prev').style.display = currentIndex > 0 ? 'block' : 'none';
+            document.getElementById('nav-next').style.display = currentIndex < photos.length - 1 ? 'block' : 'none';
+        }}
+        function navigatePhoto(dir) {{
+            currentIndex = Math.max(0, Math.min(photos.length - 1, currentIndex + dir));
+            showPhoto(photos[currentIndex]);
         }}
         function closeViewer() {{
             document.getElementById('viewer').classList.remove('active');
         }}
+        // Swipe support for mobile
+        var touchStartX = 0;
+        document.getElementById('viewer').addEventListener('touchstart', function(e) {{
+            touchStartX = e.changedTouches[0].screenX;
+        }});
+        document.getElementById('viewer').addEventListener('touchend', function(e) {{
+            var diff = e.changedTouches[0].screenX - touchStartX;
+            if (Math.abs(diff) > 50) {{
+                navigatePhoto(diff > 0 ? -1 : 1);
+            }}
+        }});
     </script>
 </body>
 </html>"""
@@ -232,16 +273,19 @@ class ShareServer:
                 pass
 
             def do_GET(self):
-                if self.path == '/' or self.path == '/gallery':
-                    self._serve_gallery()
-                elif self.path.startswith('/photo/'):
-                    self._serve_photo(self.path[7:])
-                elif self.path.startswith('/thumb/'):
-                    self._serve_thumbnail(self.path[7:])
-                elif self.path.startswith('/view/'):
-                    self._serve_photo_page(self.path[6:])
-                else:
-                    self.send_error(404)
+                try:
+                    if self.path == '/' or self.path == '/gallery':
+                        self._serve_gallery()
+                    elif self.path.startswith('/photo/'):
+                        self._serve_photo(self.path[7:])
+                    elif self.path.startswith('/thumb/'):
+                        self._serve_thumbnail(self.path[7:])
+                    elif self.path.startswith('/view/'):
+                        self._serve_photo_page(self.path[6:])
+                    else:
+                        self.send_error(404)
+                except (BrokenPipeError, ConnectionResetError):
+                    pass  # Client disconnected, ignore
 
             def _serve_gallery(self):
                 photos = server._list_photos()
@@ -250,10 +294,12 @@ class ShareServer:
                     f'<img src="/thumb/{p}" loading="lazy" alt="{p}"></a>'
                     for p in photos
                 )
+                photo_list = ', '.join(f"'/photo/{p}'" for p in photos)
                 html = GALLERY_HTML.format(
                     title=server.title,
                     count=len(photos),
-                    thumbnails=thumbnails
+                    thumbnails=thumbnails,
+                    photo_list=photo_list
                 )
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -281,7 +327,11 @@ class ShareServer:
                 self.send_header('Content-Length', str(osp.getsize(filepath)))
                 self.end_headers()
                 with open(filepath, 'rb') as f:
-                    self.wfile.write(f.read())
+                    while True:
+                        chunk = f.read(65536)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
 
             def _serve_thumbnail(self, filename):
                 thumb_path = server._get_thumbnail(filename)
@@ -307,8 +357,12 @@ class ShareServer:
 
     def start(self):
         """Start the web server in a background thread."""
+
+        class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+            daemon_threads = True
+
         handler = self._create_handler()
-        self._server = HTTPServer(('0.0.0.0', self.port), handler)
+        self._server = ThreadedHTTPServer(('0.0.0.0', self.port), handler)
         self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._thread.start()
         LOGGER.info("Share server started on port %s", self.port)

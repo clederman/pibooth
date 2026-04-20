@@ -18,7 +18,7 @@ setup(
         'qrcode[pil]>=7.0',
     ],
     entry_points={
-        'pibooth': ['pibooth_share = pibooth_share.plugin:SharePlugin'],
+        'pibooth': ['pibooth_share = pibooth_share.plugin'],
     },
     zip_safe=False,
 )
