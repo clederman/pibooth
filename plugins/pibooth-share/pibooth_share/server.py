@@ -132,9 +132,10 @@ GALLERY_HTML = """<!DOCTYPE html>
         <img id="viewer-img" src="">
         <button class="nav nav-right" id="nav-next" onclick="navigatePhoto(1)">&#10095;</button>
         <div class="actions">
-            <a id="viewer-download" href="" download>Télécharger</a>
+            <button id="viewer-save" onclick="saveFromViewer()">Enregistrer</button>
             <button onclick="closeViewer()">Fermer</button>
         </div>
+        <p class="hint" id="viewer-hint" style="color:#8899aa;font-size:0.85em;margin-top:8px;"></p>
     </div>
     <script>
         var photos = [{photo_list}];
@@ -157,6 +158,35 @@ GALLERY_HTML = """<!DOCTYPE html>
         }}
         function closeViewer() {{
             document.getElementById('viewer').classList.remove('active');
+            document.getElementById('viewer-hint').textContent = '';
+        }}
+        async function saveFromViewer() {{
+            var src = document.getElementById('viewer-img').src;
+            var filename = src.split('/').pop();
+            if (navigator.share && navigator.canShare) {{
+                try {{
+                    var response = await fetch(src);
+                    var blob = await response.blob();
+                    var file = new File([blob], filename, {{ type: 'image/jpeg' }});
+                    if (navigator.canShare({{ files: [file] }})) {{
+                        await navigator.share({{ files: [file], title: 'Ma photo' }});
+                        return;
+                    }}
+                }} catch(e) {{
+                    if (e.name !== 'AbortError') console.log(e);
+                }}
+            }}
+            var hint = document.getElementById('viewer-hint');
+            var isIOS = /iPhone|iPad/.test(navigator.userAgent);
+            if (isIOS) {{
+                hint.textContent = 'Appuyez longuement sur la photo puis "Ajouter aux photos"';
+            }} else {{
+                hint.textContent = 'Appuyez longuement sur la photo puis "Enregistrer l\\'image"';
+            }}
+            var a = document.createElement('a');
+            a.href = src;
+            a.download = filename;
+            a.click();
         }}
         // Swipe support for mobile
         var touchStartX = 0;
@@ -203,7 +233,7 @@ PHOTO_HTML = """<!DOCTYPE html>
             display: flex;
             gap: 15px;
         }}
-        .actions a {{
+        .actions a, .actions button {{
             color: #fff;
             background: #0f3460;
             border: none;
@@ -211,15 +241,57 @@ PHOTO_HTML = """<!DOCTYPE html>
             border-radius: 10px;
             font-size: 1.1em;
             text-decoration: none;
+            cursor: pointer;
+        }}
+        .hint {{
+            margin-top: 12px;
+            color: #8899aa;
+            font-size: 0.85em;
+            text-align: center;
         }}
     </style>
 </head>
 <body>
-    <img src="/photo/{filename}">
+    <img id="photo" src="/photo/{filename}">
     <div class="actions">
-        <a href="/photo/{filename}" download>Télécharger</a>
+        <button onclick="shareOrSave()">Enregistrer la photo</button>
         <a href="/">Galerie</a>
     </div>
+    <p class="hint" id="hint"></p>
+    <script>
+        async function shareOrSave() {{
+            // Try Web Share API first (works on most mobile browsers)
+            if (navigator.share && navigator.canShare) {{
+                try {{
+                    const response = await fetch('/photo/{filename}');
+                    const blob = await response.blob();
+                    const file = new File([blob], '{filename}', {{ type: 'image/jpeg' }});
+                    if (navigator.canShare({{ files: [file] }})) {{
+                        await navigator.share({{
+                            files: [file],
+                            title: 'Ma photo photobooth'
+                        }});
+                        return;
+                    }}
+                }} catch(e) {{
+                    if (e.name !== 'AbortError') console.log(e);
+                }}
+            }}
+            // Fallback: open image directly for long-press save
+            var hint = document.getElementById('hint');
+            var isIOS = /iPhone|iPad/.test(navigator.userAgent);
+            if (isIOS) {{
+                hint.textContent = 'Appuyez longuement sur la photo puis "Ajouter aux photos"';
+            }} else {{
+                hint.textContent = 'Appuyez longuement sur la photo puis "Enregistrer l\\'image"';
+            }}
+            // Also try download as fallback
+            var a = document.createElement('a');
+            a.href = '/photo/{filename}';
+            a.download = '{filename}';
+            a.click();
+        }}
+    </script>
 </body>
 </html>"""
 
