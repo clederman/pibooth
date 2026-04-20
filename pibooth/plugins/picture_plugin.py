@@ -59,7 +59,7 @@ class PicturePlugin:
         outcome = yield  # all corresponding hookimpls are invoked here
         factory = outcome.get_result() or factory
 
-        nbr_capture_choices = len(cfg.gettuple('PICTURE', 'captures', int))
+        nbr_capture_choices = len(cfg.gettuple('PICTURE', 'captures', str))
         factory.set_margin(cfg.getint('PICTURE', 'margin_thick'))
 
         backgrounds = cfg.gettuple('PICTURE', 'backgrounds', ('color', 'path'), nbr_capture_choices)
@@ -117,13 +117,15 @@ class PicturePlugin:
         self.second_previous_picture = app.previous_picture
         self._reset_vars(app)
 
-        idx = app.capture_choices.index(app.capture_nbr)
+        idx = app.capture_choices.index(app.capture_choice_raw or app.capture_nbr)
         self.texts_vars['date'] = datetime.strptime(app.capture_date, "%Y-%m-%d-%H-%M-%S")
         self.texts_vars['count'] = app.count
 
         LOGGER.info("Saving raw captures")
         captures = app.camera.grab_captures()
-        default_factory = get_picture_factory(captures, cfg.get('PICTURE', 'orientation'))
+        # Use per-choice orientation if set, otherwise fall back to global config
+        self._orientation = getattr(app, 'capture_orientation', None) or cfg.get('PICTURE', 'orientation')
+        default_factory = get_picture_factory(captures, self._orientation)
         factory = self._pm.hook.pibooth_setup_picture_factory(cfg=cfg,
                                                               opt_index=idx,
                                                               factory=default_factory)
@@ -142,14 +144,14 @@ class PicturePlugin:
     @pibooth.hookimpl
     def state_processing_exit(self, cfg, app):
         app.count.taken += 1  # Do it here because 'print' state can be skipped
-        idx = app.capture_choices.index(app.capture_nbr)
+        idx = app.capture_choices.index(app.capture_choice_raw or app.capture_nbr)
 
         if cfg.getboolean('WINDOW', 'animate') and app.capture_nbr > 1:
             LOGGER.info("Asyncronously generate pictures for animation")
             factory, _ = self.picture_worker.result()
             for capture in factory._images:
-                default_factory = get_picture_factory((capture,), cfg.get(
-                    'PICTURE', 'orientation'), force_pil=True, dpi=200)
+                default_factory = get_picture_factory((capture,), self._orientation,
+                                                      force_pil=True, dpi=200)
                 factory = self._pm.hook.pibooth_setup_picture_factory(cfg=cfg,
                                                                       opt_index=idx,
                                                                       factory=default_factory)

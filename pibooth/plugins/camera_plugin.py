@@ -67,10 +67,14 @@ class CameraPlugin:
     @pibooth.hookimpl
     def state_wait_enter(self, app):
         app.capture_date = None
+        app.capture_orientation = None
+        app.capture_choice_raw = None
         if len(app.capture_choices) > 1:
             app.capture_nbr = None
         else:
-            app.capture_nbr = app.capture_choices[0]
+            from pibooth.pictures import parse_capture_choice
+            app.capture_choice_raw = app.capture_choices[0]
+            app.capture_nbr, app.capture_orientation = parse_capture_choice(app.capture_choice_raw)
 
     @pibooth.hookimpl
     def state_preview_enter(self, cfg, app, win):

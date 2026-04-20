@@ -97,6 +97,8 @@ class PiboothApplication:
         # Change them may break plugins compatibility
         self.capture_nbr = None
         self.capture_date = None
+        self.capture_orientation = None
+        self.capture_choice_raw = None
         self.capture_choices = (4, 1)
 
         self.previous_animated = None
@@ -135,15 +137,19 @@ class PiboothApplication:
         else:
             fonts.CURRENT = fonts.get_filename(self._config.get('WINDOW', 'font'))
 
-        # Set the captures choices
-        choices = self._config.gettuple('PICTURE', 'captures', int)
-        for chx in choices:
-            if chx not in [1, 2, 3, 4]:
+        # Set the captures choices (supports '1L', '4L' for forced orientation)
+        from pibooth.pictures import parse_capture_choice
+        raw_choices = self._config.gettuple('PICTURE', 'captures', str)
+        valid = True
+        for chx in raw_choices:
+            count, _ = parse_capture_choice(chx)
+            if count not in [1, 2, 3, 4]:
                 LOGGER.warning("Invalid captures number '%s' in config, fallback to '%s'",
                                chx, self.capture_choices)
-                choices = self.capture_choices
+                valid = False
                 break
-        self.capture_choices = choices
+        if valid:
+            self.capture_choices = raw_choices
 
         # Handle autostart of the application
         self._config.handle_autostart()

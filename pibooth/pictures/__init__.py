@@ -17,6 +17,26 @@ AUTO = 'auto'
 PORTRAIT = 'portrait'
 LANDSCAPE = 'landscape'
 
+# Suffixes for capture orientation choices
+ORIENTATION_SUFFIXES = {'L': LANDSCAPE, 'P': PORTRAIT}
+
+
+def parse_capture_choice(choice):
+    """Parse a capture choice value into (count, orientation).
+
+    :param choice: capture choice as int or string (e.g. 1, '1L', '4P')
+    :type choice: int or str
+
+    :return: (number of captures, orientation)
+    :rtype: tuple
+    """
+    if isinstance(choice, int):
+        return (choice, AUTO)
+    choice = str(choice).strip()
+    if choice[-1].upper() in ORIENTATION_SUFFIXES:
+        return (int(choice[:-1]), ORIENTATION_SUFFIXES[choice[-1].upper()])
+    return (int(choice), AUTO)
+
 
 def get_filename(name):
     """Return absolute path to a picture located in the current package.

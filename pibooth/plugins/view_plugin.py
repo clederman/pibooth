@@ -101,7 +101,9 @@ class ViewPlugin:
     @pibooth.hookimpl
     def state_choose_do(self, app, win, events):
         if evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
-            app.capture_nbr = win.scene.get_selection()
+            from pibooth.pictures import parse_capture_choice
+            app.capture_choice_raw = win.scene.get_selection()
+            app.capture_nbr, app.capture_orientation = parse_capture_choice(app.capture_choice_raw)
         if evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
             win.scene.next()
 
