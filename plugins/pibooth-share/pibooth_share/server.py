@@ -132,10 +132,10 @@ GALLERY_HTML = """<!DOCTYPE html>
         <img id="viewer-img" src="">
         <button class="nav nav-right" id="nav-next" onclick="navigatePhoto(1)">&#10095;</button>
         <div class="actions">
-            <button id="viewer-save" onclick="saveFromViewer()">Enregistrer</button>
+            <a id="viewer-open" href="" target="_blank">Ouvrir</a>
             <button onclick="closeViewer()">Fermer</button>
         </div>
-        <p class="hint" id="viewer-hint" style="color:#8899aa;font-size:0.85em;margin-top:8px;"></p>
+        <p class="hint" id="viewer-hint" style="color:#8899aa;font-size:0.85em;margin-top:8px;">Appuyez longuement sur la photo pour l'enregistrer</p>
     </div>
     <script>
         var photos = [{photo_list}];
@@ -148,7 +148,7 @@ GALLERY_HTML = """<!DOCTYPE html>
         }}
         function showPhoto(src) {{
             document.getElementById('viewer-img').src = src;
-            // viewer-download removed, save handled by saveFromViewer()
+            document.getElementById('viewer-open').href = src;
             document.getElementById('nav-prev').style.display = currentIndex > 0 ? 'block' : 'none';
             document.getElementById('nav-next').style.display = currentIndex < photos.length - 1 ? 'block' : 'none';
         }}
@@ -252,46 +252,12 @@ PHOTO_HTML = """<!DOCTYPE html>
     </style>
 </head>
 <body>
-    <img id="photo" src="/photo/{filename}">
+    <img src="/photo/{filename}">
     <div class="actions">
-        <button onclick="shareOrSave()">Enregistrer la photo</button>
+        <a href="/photo/{filename}" target="_blank">Ouvrir</a>
         <a href="/">Galerie</a>
     </div>
-    <p class="hint" id="hint"></p>
-    <script>
-        async function shareOrSave() {{
-            // Try Web Share API first (works on most mobile browsers)
-            if (navigator.share && navigator.canShare) {{
-                try {{
-                    const response = await fetch('/photo/{filename}');
-                    const blob = await response.blob();
-                    const file = new File([blob], '{filename}', {{ type: 'image/jpeg' }});
-                    if (navigator.canShare({{ files: [file] }})) {{
-                        await navigator.share({{
-                            files: [file],
-                            title: 'Ma photo photobooth'
-                        }});
-                        return;
-                    }}
-                }} catch(e) {{
-                    if (e.name !== 'AbortError') console.log(e);
-                }}
-            }}
-            // Fallback: open image directly for long-press save
-            var hint = document.getElementById('hint');
-            var isIOS = /iPhone|iPad/.test(navigator.userAgent);
-            if (isIOS) {{
-                hint.textContent = 'Appuyez longuement sur la photo puis "Ajouter aux photos"';
-            }} else {{
-                hint.textContent = 'Appuyez longuement sur la photo puis "Enregistrer l\\'image"';
-            }}
-            // Also try download as fallback
-            var a = document.createElement('a');
-            a.href = '/photo/{filename}';
-            a.download = '{filename}';
-            a.click();
-        }}
-    </script>
+    <p class="hint">Appuyez longuement sur la photo pour l'enregistrer</p>
 </body>
 </html>"""
 
