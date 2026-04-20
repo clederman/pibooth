@@ -132,10 +132,10 @@ GALLERY_HTML = """<!DOCTYPE html>
         <img id="viewer-img" src="">
         <button class="nav nav-right" id="nav-next" onclick="navigatePhoto(1)">&#10095;</button>
         <div class="actions">
-            <a id="viewer-open" href="" target="_blank">Ouvrir</a>
+            <a id="viewer-download" href="" download>Télécharger</a>
             <button onclick="closeViewer()">Fermer</button>
         </div>
-        <p class="hint" id="viewer-hint" style="color:#8899aa;font-size:0.85em;margin-top:8px;">Appuyez longuement sur la photo pour l'enregistrer</p>
+        <p class="hint" style="color:#8899aa;font-size:0.85em;margin-top:8px;">ou appuyez longuement sur la photo pour l'ajouter à votre galerie</p>
     </div>
     <script>
         var photos = [{photo_list}];
@@ -148,7 +148,7 @@ GALLERY_HTML = """<!DOCTYPE html>
         }}
         function showPhoto(src) {{
             document.getElementById('viewer-img').src = src;
-            document.getElementById('viewer-open').href = src;
+            document.getElementById('viewer-download').href = src;
             document.getElementById('nav-prev').style.display = currentIndex > 0 ? 'block' : 'none';
             document.getElementById('nav-next').style.display = currentIndex < photos.length - 1 ? 'block' : 'none';
         }}
@@ -158,35 +158,6 @@ GALLERY_HTML = """<!DOCTYPE html>
         }}
         function closeViewer() {{
             document.getElementById('viewer').classList.remove('active');
-            document.getElementById('viewer-hint').textContent = '';
-        }}
-        async function saveFromViewer() {{
-            var src = document.getElementById('viewer-img').src;
-            var filename = src.split('/').pop();
-            if (navigator.share && navigator.canShare) {{
-                try {{
-                    var response = await fetch(src);
-                    var blob = await response.blob();
-                    var file = new File([blob], filename, {{ type: 'image/jpeg' }});
-                    if (navigator.canShare({{ files: [file] }})) {{
-                        await navigator.share({{ files: [file], title: 'Ma photo' }});
-                        return;
-                    }}
-                }} catch(e) {{
-                    if (e.name !== 'AbortError') console.log(e);
-                }}
-            }}
-            var hint = document.getElementById('viewer-hint');
-            var isIOS = /iPhone|iPad/.test(navigator.userAgent);
-            if (isIOS) {{
-                hint.textContent = 'Appuyez longuement sur la photo puis "Ajouter aux photos"';
-            }} else {{
-                hint.textContent = 'Appuyez longuement sur la photo puis "Enregistrer l\\'image"';
-            }}
-            var a = document.createElement('a');
-            a.href = src;
-            a.download = filename;
-            a.click();
         }}
         // Swipe support for mobile
         var touchStartX = 0;
@@ -254,10 +225,10 @@ PHOTO_HTML = """<!DOCTYPE html>
 <body>
     <img src="/photo/{filename}">
     <div class="actions">
-        <a href="/photo/{filename}" target="_blank">Ouvrir</a>
+        <a href="/photo/{filename}" download>Télécharger</a>
         <a href="/">Galerie</a>
     </div>
-    <p class="hint">Appuyez longuement sur la photo pour l'enregistrer</p>
+    <p class="hint">ou appuyez longuement sur la photo pour l'ajouter à votre galerie</p>
 </body>
 </html>"""
 
