@@ -301,7 +301,14 @@ class PiboothConfigParser(RawConfigParser):
             if color and len(values) == 3 and all(isinstance(elem, int) for elem in values):
                 values = (values,)
             elif not all(isinstance(elem, types) for elem in values):
-                raise ValueError(f"Invalid config value [{section}][{option}]={values}")
+                # Try to convert all elements to the requested type (e.g. int to str)
+                if str in types:
+                    try:
+                        values = tuple(str(v) for v in values)
+                    except (ValueError, TypeError):
+                        raise ValueError(f"Invalid config value [{section}][{option}]={values}")
+                else:
+                    raise ValueError(f"Invalid config value [{section}][{option}]={values}")
 
         if path:
             new_values = []
