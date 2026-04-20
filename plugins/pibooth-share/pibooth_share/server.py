@@ -281,6 +281,13 @@ class ShareServer:
                 """Suppress default HTTP logging."""
                 pass
 
+            def handle(self):
+                """Handle request, silently ignore client disconnections."""
+                try:
+                    super().handle()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+
             def do_GET(self):
                 try:
                     if self.path == '/' or self.path == '/gallery':
