@@ -67,20 +67,31 @@ class CameraPlugin:
     @pibooth.hookimpl
     def state_wait_enter(self, app):
         app.capture_date = None
-        if len(app.capture_choices) > 1:
-            app.capture_nbr = None
-        else:
+        if len(app.capture_choices) == 1:
             app.capture_nbr = app.capture_choices[0]
+        else:
+            app.capture_nbr = None
 
     @pibooth.hookimpl
     def state_preview_enter(self, cfg, app, win):
         LOGGER.info("Show preview before next capture")
         border = 100
         app.camera.preview(win.get_rect(absolute=True).inflate(-border, -border))
-        self.timer.start(cfg.getint('WINDOW', 'preview_delay'))
+        self._preview_stabilized = False
+        self._preview_frame_count = 0
 
     @pibooth.hookimpl
-    def state_preview_do(self, cfg, app):
+    def state_preview_do(self, cfg, app, events):
+        # Wait for a few preview frames before starting the countdown
+        # to let the camera stabilize (avoids showing last captured photo)
+        if not self._preview_stabilized:
+            if evts.find_event(events, evts.EVT_PIBOOTH_CAM_PREVIEW):
+                self._preview_frame_count += 1
+            if self._preview_frame_count >= 3:
+                self._preview_stabilized = True
+                self.timer.start(cfg.getint('WINDOW', 'preview_delay'))
+            return
+
         if cfg.getboolean('WINDOW', 'preview_countdown'):
             if self.timer.remaining() > 0.5:
                 app.camera.set_overlay(math.ceil(self.timer.remaining()))
@@ -89,7 +100,7 @@ class CameraPlugin:
 
     @pibooth.hookimpl
     def state_preview_validate(self):
-        if self.timer.is_timeout():
+        if self._preview_stabilized and self.timer.is_timeout():
             return 'capture'
 
     @pibooth.hookimpl
