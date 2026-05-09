@@ -5,7 +5,7 @@ from pygame_imslider import ImSlider, ImSliderRenderer, STYPE_LOOP
 from pibooth import evts
 from pibooth import pictures
 from pibooth.language import get_translated_text
-from pibooth.view.pygame.sprites import BasePygameScene, LeftArrowSprite, RightArrowSprite, TextSprite
+from pibooth.view.pygame.sprites import BasePygameScene, ImageSprite, LeftArrowSprite, RightArrowSprite, TextSprite
 
 
 class Renderer(ImSliderRenderer):
@@ -55,16 +55,25 @@ class ChooseScene(BasePygameScene):
         self._orientation = pictures.AUTO
         self.slider = ImSlider((200, 100), focus=False, renderer=Renderer(self), stype=STYPE_LOOP)
         self.text = TextSprite(self, get_translated_text('choose'))
+        self.left_choice = ImageSprite(self, colorize=False)
+        self.right_choice = ImageSprite(self, colorize=False)
+        self.left_choice.visible = 0
+        self.right_choice.visible = 0
         self.left_arrow = LeftArrowSprite(self)
         self.right_arrow = RightArrowSprite(self)
+        self.left_arrow_label = TextSprite(self, get_translated_text('choose_validate') or '')
+        self.right_arrow_label = TextSprite(self, get_translated_text('choose_next') or '')
+        self.left_arrow_label.visible = 0
+        self.right_arrow_label.visible = 0
 
         self.right_arrow.set_skin('arrow_double.png')
         self.left_arrow.on_pressed = lambda: evts.post(evts.EVT_PIBOOTH_CAPTURE)
         self.right_arrow.on_pressed = lambda: evts.post(evts.EVT_PIBOOTH_PRINT)
 
     def resize(self, size):
-        # Slider
-        slider_width, slider_height = self.rect.width * 3 // 4, self.rect.height * 6 // 8
+        # Slider (used when 3+ choices) - reduced height to leave room for arrow labels
+        slider_width = self.rect.width * 3 // 4
+        slider_height = self.rect.height * 8 // 16
         x, y = (self.rect.width - slider_width) // 2, (self.rect.height - slider_height) // 2
         if self.arrow_location in (self.ARROW_BOTTOM, self.ARROW_TOP):
             self.slider.set_arrows_visible(False)
@@ -72,6 +81,16 @@ class ChooseScene(BasePygameScene):
             self.slider.set_arrows_visible(True)
         self.slider.set_position(x, y)
         self.slider.set_size(slider_width, slider_height)
+
+        # Two thumbnails layout (used when exactly 2 choices) - V2 sizing
+        thumb_width = self.rect.width * 9 // 20  # 45% of width
+        thumb_height = self.rect.height * 3 // 5  # 60% of height
+        inter = (self.rect.width - 2 * thumb_width) // 3
+        left_x = self.rect.left + inter
+        right_x = self.rect.left + 2 * inter + thumb_width
+        thumb_y = self.rect.top + self.rect.height * 3 // 10  # 30% from top
+        self.left_choice.set_rect(left_x, thumb_y, thumb_width, thumb_height)
+        self.right_choice.set_rect(right_x, thumb_y, thumb_width, thumb_height)
 
         # Text
         self.text.set_text(get_translated_text('choose'))  # In case of text has changed
@@ -106,19 +125,41 @@ class ChooseScene(BasePygameScene):
                 y = self.rect.bottom - size[1] - 10
             self.right_arrow.set_rect(x, y, size[0], size[1])
 
+        # Arrow labels (shown in slider mode only)
+        self.left_arrow_label.set_text(get_translated_text('choose_validate') or '')
+        self.right_arrow_label.set_text(get_translated_text('choose_next') or '')
+        label_width = self.rect.width // 3
+        label_height = int(self.rect.height * 0.07)
+        if self.arrow_location == self.ARROW_TOP:
+            label_y = self.left_arrow.rect.bottom + 5
+        else:
+            label_y = self.left_arrow.rect.top - label_height - 5
+        self.left_arrow_label.set_rect(
+            self.left_arrow.rect.centerx - label_width // 2, label_y, label_width, label_height)
+        self.right_arrow_label.set_rect(
+            self.right_arrow.rect.centerx - label_width // 2, label_y, label_width, label_height)
+
     def update(self, events):
         super().update(events)
-        self.slider.update(events)
+        if not self._use_thumbnails:
+            self.slider.update(events)
 
     def draw(self, surface, force=False):
         rects = super().draw(surface, force)
-        rects += self.slider.draw(surface, force)
+        if not self._use_thumbnails:
+            rects += self.slider.draw(surface, force)
         return rects
 
     def next(self):
         """Display next possible layout.
         """
         self.slider.on_next()
+
+    @property
+    def _use_thumbnails(self):
+        """Two-choice mode: show thumbnails directly above buttons (no slider).
+        """
+        return len(self.choices) == 2
 
     def set_choices(self, choices, orientation=pictures.AUTO, backgrounds=None):
         """Set the list of possible number of captures.
@@ -128,13 +169,39 @@ class ChooseScene(BasePygameScene):
             self.choices = choices
             self._orientation = orientation
             if backgrounds and len(backgrounds) >= len(choices):
-                self.slider.load_images([pictures.get_layout_asset(
+                images = [pictures.get_layout_asset(
                     c, self.background.get_color(), self.text_color, orientation, backgrounds[i])
-                    for i, c in enumerate(choices)])
+                    for i, c in enumerate(choices)]
             else:
-                self.slider.load_images([pictures.get_layout_asset(
+                images = [pictures.get_layout_asset(
                     c, self.background.get_color(), self.text_color, orientation)
-                    for c in choices])
+                    for c in choices]
+
+            if len(choices) == 2:
+                # Two-choice mode: show thumbnails above buttons, hide slider
+                self.left_choice.set_skin(images[0])
+                self.right_choice.set_skin(images[1])
+                self.left_choice.show()
+                self.right_choice.show()
+                # Right arrow is a simple validate arrow (mirror of left), not a slider arrow
+                self.right_arrow.set_skin('arrow.png')
+                # Hide labels: thumbnails are self-explanatory
+                self.left_arrow_label.hide()
+                self.right_arrow_label.hide()
+            else:
+                # Slider mode (3+ choices)
+                self.slider.load_images(images)
+                self.left_choice.hide()
+                self.right_choice.hide()
+                # Right arrow shows double arrow to indicate slider navigation
+                self.right_arrow.set_skin('arrow_double.png')
+                # Show labels above arrows (only if arrows are visible)
+                if self.arrow_location in (self.ARROW_BOTTOM, self.ARROW_TOP):
+                    self.left_arrow_label.show()
+                    self.right_arrow_label.show()
+                else:
+                    self.left_arrow_label.hide()
+                    self.right_arrow_label.hide()
 
     def get_selection(self):
         """Return curretly selected number of captures.

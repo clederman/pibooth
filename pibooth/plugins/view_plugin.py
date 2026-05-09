@@ -80,20 +80,8 @@ class ViewPlugin:
 
     @pibooth.hookimpl
     def state_wait_validate(self, cfg, app, events):
-        if len(app.capture_choices) == 2:
-            # V2 behavior: left button = first choice, right button = second choice
-            if evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
-                app.capture_nbr = app.capture_choices[0]
-            elif evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
-                app.capture_nbr = app.capture_choices[1]
-            if app.capture_nbr:
-                if cfg.getfloat('WINDOW', 'chosen_delay') > 0:
-                    return 'chosen'
-                if cfg.getint('WINDOW', 'preview_delay') > 0:
-                    return 'preview'
-                return 'capture'
-        elif evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
-            if len(app.capture_choices) > 2:
+        if evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
+            if len(app.capture_choices) > 1:
                 return 'choose'
             if cfg.getfloat('WINDOW', 'chosen_delay') > 0:
                 return 'chosen'
@@ -112,10 +100,17 @@ class ViewPlugin:
 
     @pibooth.hookimpl
     def state_choose_do(self, app, win, events):
-        if evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
-            app.capture_nbr = win.scene.get_selection()
-        if evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
-            win.scene.next()
+        if len(app.capture_choices) == 2:
+            # V2 behavior: left button = first choice, right button = second choice
+            if evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
+                app.capture_nbr = app.capture_choices[0]
+            elif evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
+                app.capture_nbr = app.capture_choices[1]
+        else:
+            if evts.find_event(events, evts.EVT_PIBOOTH_CAPTURE):
+                app.capture_nbr = win.scene.get_selection()
+            if evts.find_event(events, evts.EVT_PIBOOTH_PRINT):
+                win.scene.next()
 
     @pibooth.hookimpl
     def state_choose_validate(self, cfg, app):
